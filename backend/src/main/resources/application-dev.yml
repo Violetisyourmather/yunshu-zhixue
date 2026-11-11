@@ -1,0 +1,16 @@
+# 开发环境：本地 Docker Compose（deploy/docker-compose.yml）
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+mybatis-plus:
+  configuration:
+    # 开发期打印 SQL，生产环境关闭
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.yunshu.zhixue: DEBUG
+    org.springframework.security: INFO

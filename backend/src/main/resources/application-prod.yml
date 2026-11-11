@@ -1,0 +1,17 @@
+# 生产环境：连接信息与密钥全部由环境变量注入，禁止硬编码
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+logging:
+  level:
+    root: INFO
+    com.yunshu.zhixue: INFO
+  file:
+    name: ${LOG_FILE:logs/yunshu-zhixue.log}

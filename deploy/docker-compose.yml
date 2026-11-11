@@ -1,0 +1,134 @@
+# ============================================================
+# 云枢智学 · 基础服务编排（MySQL 8 + Redis 7 + MinIO）
+# 依据：docs/design/02.整体架构设计.md §2.4 / §4.6
+#
+# 用法（在 deploy/ 目录下执行）：
+#   docker compose up -d          启动
+#   docker compose ps             查看状态（等待 healthy）
+#   docker compose logs -f        查看日志
+#   docker compose down           停止（保留数据）
+#   docker compose down -v        停止并清空数据（重建时重新执行 schema.sql）
+#
+# 变量优先级：deploy/.env > 本文件默认值；模板见 env/.env.example
+# ============================================================
+
+name: yszx
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ----------------------------------------------------------
+  # MySQL 8.0 · 业务主库（库名 yszx，utf8mb4，UTC 存储）
+  # 首次启动（数据卷为空）时自动执行 scripts/sql/schema.sql
+  # ----------------------------------------------------------
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    container_name: yszx-mysql
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      # 时间统一 UTC 存储（03 文档 §2、D17），展示层由应用转 Asia/Shanghai
+      - --default-time-zone=+00:00
+      - --max-connections=500
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-yszx_root_2026}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yszx}
+      MYSQL_USER: ${MYSQL_USER:-yszx}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-yszx_2026}
+      TZ: UTC
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 建表脚本（23 表 + 种子）仅初始化时执行一次
+      - ../scripts/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks:
+      - yszx-net
+
+  # ----------------------------------------------------------
+  # Redis 7 · 登录态 / 验证码 / 每日配额 / 热点缓存
+  # 开启 AOF 持久化；不做内存淘汰（配额与登录态不能被静默逐出）
+  # ----------------------------------------------------------
+  redis:
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    container_name: yszx-redis
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --requirepass
+      - ${REDIS_PASSWORD:-yszx_redis_2026}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-yszx_redis_2026}
+      TZ: UTC
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - yszx-net
+
+  # ----------------------------------------------------------
+  # MinIO · S3 兼容对象存储（平台 Logo / 默认头像 / 学员头像）
+  # 官方 minio/minio 镜像已停止发布，改用社区维护的 pgsty/minio
+  # （仍是 MinIO 本体，API 与控制台一致；可用 MINIO_IMAGE 覆盖）
+  # 控制台：http://localhost:9001
+  # ----------------------------------------------------------
+  minio:
+    image: ${MINIO_IMAGE:-pgsty/minio:latest}
+    container_name: yszx-minio
+    restart: unless-stopped
+    logging: *default-logging
+    command: server /data --address ":9000" --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-yszxadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-yszx_minio_2026}
+      TZ: UTC
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - yszx-net
+
+volumes:
+  mysql-data:
+    name: yszx-mysql-data
+  redis-data:
+    name: yszx-redis-data
+  minio-data:
+    name: yszx-minio-data
+
+networks:
+  yszx-net:
+    name: yszx-net
+    driver: bridge
