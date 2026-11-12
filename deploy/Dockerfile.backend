@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+# 构建上下文：项目根目录（docker compose 中 context: ..）
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /build
+COPY backend/pom.xml .
+COPY backend/src ./src
+RUN --mount=type=cache,target=/root/.m2 mvn -q -DskipTests package
+
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+RUN groupadd --system app && useradd --system --gid app app
+COPY --from=build /build/target/yunshu-zhixue-backend-0.1.0-SNAPSHOT.jar /app/app.jar
+USER app
+EXPOSE 8080
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/app.jar"]

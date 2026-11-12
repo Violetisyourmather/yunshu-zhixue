@@ -15,6 +15,10 @@ import type {
 export const useUserStore = defineStore('user', () => {
   const profile = ref<StudentProfile | null>(null)
   const loadingProfile = ref(false)
+  /** 复用进行中的资料请求，避免页面并发调用时拿到空结果。 */
+  let profileRequest: Promise<void> | null = null
+  /** 登出时递增版本号，丢弃登出前尚未返回的资料请求。 */
+  let profileRequestVersion = 0
 
   const isLoggedIn = computed(() => authBypassEnabled || Boolean(accessToken.value))
   const displayName = computed(() =>
@@ -30,37 +34,49 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function loginByPassword(payload: PasswordLoginPayload): Promise<LoginResult> {
+  async function loginByPassword(payload: PasswordLoginPayload, remember = true): Promise<LoginResult> {
     const result = await authApi.loginByPassword(payload)
-    setTokens(result)
+    setTokens(result, remember)
     await loadProfileQuietly()
     return result
   }
 
-  async function loginBySms(payload: SmsLoginPayload): Promise<LoginResult> {
+  async function loginBySms(payload: SmsLoginPayload, remember = true): Promise<LoginResult> {
     const result = await authApi.loginBySms(payload)
-    setTokens(result)
+    setTokens(result, remember)
     await loadProfileQuietly()
     return result
   }
 
   async function registerAndLogin(payload: RegisterPayload): Promise<LoginResult> {
     const result = await authApi.register(payload)
-    setTokens(result)
+    setTokens(result, true)
     await loadProfileQuietly()
     return result
   }
 
-  async function loadProfile(): Promise<void> {
-    if (authBypassEnabled || !isLoggedIn.value || loadingProfile.value) {
-      return
+  function loadProfile(): Promise<void> {
+    if (authBypassEnabled || !isLoggedIn.value) {
+      return Promise.resolve()
     }
+    if (profileRequest) {
+      return profileRequest
+    }
+    const version = ++profileRequestVersion
     loadingProfile.value = true
-    try {
-      profile.value = await getProfile()
-    } finally {
-      loadingProfile.value = false
-    }
+    profileRequest = getProfile()
+      .then((data) => {
+        if (version === profileRequestVersion && isLoggedIn.value) {
+          profile.value = data
+        }
+      })
+      .finally(() => {
+        if (version === profileRequestVersion) {
+          loadingProfile.value = false
+          profileRequest = null
+        }
+      })
+    return profileRequest
   }
 
   /** 有令牌但尚未取到资料时补取（刷新页面后恢复顶栏昵称） */
@@ -85,6 +101,9 @@ export const useUserStore = defineStore('user', () => {
       // 登出幂等，网络异常也继续清理本地登录态
     } finally {
       clearTokens()
+      profileRequestVersion += 1
+      profileRequest = null
+      loadingProfile.value = false
       profile.value = null
     }
   }

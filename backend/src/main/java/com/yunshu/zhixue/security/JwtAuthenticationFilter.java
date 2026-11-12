@@ -37,6 +37,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.tokenBlacklist = tokenBlacklist;
     }
 
+    /**
+     * SSE 等异步请求完成时会再次经过过滤器链，需要重新建立 SecurityContext，
+     * 否则异步分发会被 AuthorizationFilter 判定为未认证。
+     */
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {

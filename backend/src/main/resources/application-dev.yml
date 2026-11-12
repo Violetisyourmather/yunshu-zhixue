@@ -1,4 +1,12 @@
 # 开发环境：本地 Docker Compose（deploy/docker-compose.yml）
+app:
+  sms:
+    # 本地无短信服务商：验证码记录到日志并通过接口回显，便于联调
+    mock: true
+  preview:
+    # 开发/内测环境开启「管理端 → 学员端」内测账号免登录通道
+    portal-login-enabled: ${PREVIEW_PORTAL_LOGIN_ENABLED:true}
+
 springdoc:
   api-docs:
     enabled: true

@@ -1,0 +1,16 @@
+.git
+.gitignore
+**/node_modules
+**/dist
+backend/target
+oracleJdk-27
+.idea
+.vscode
+*.iml
+*.log
+deploy/.env
+prototype
+docs
+scripts/interview-md/*.md
+scripts/interview-md/*.csv
+scripts/interview-md/*.json

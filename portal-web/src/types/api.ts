@@ -38,6 +38,12 @@ export interface SmsCodePayload {
   type: SmsScene
 }
 
+/** P-A01 发送验证码响应；devCode 仅在开发环境 mock 短信时返回。 */
+export interface SmsCodeResult {
+  expireSeconds: number
+  devCode?: string | null
+}
+
 export interface PasswordLoginPayload {
   account: string
   password: string
@@ -82,7 +88,22 @@ export interface StudentProfile {
   study: {
     totalDays: number
     accuracyRate: number
+    completedCourseCount: number
   }
+}
+
+/** P-M02 修改资料；未传字段保持原值，邮箱/头像传空字符串表示清空。 */
+export interface ProfileUpdatePayload {
+  nickname?: string
+  email?: string | null
+  gender?: number
+  preferredSubjectId?: number | null
+  avatar?: string | null
+}
+
+/** P-M05 头像上传结果。 */
+export interface AvatarUploadResult {
+  url: string
 }
 
 /** 04 §2.9 SSE 事件负载。 */
@@ -94,12 +115,17 @@ export interface SseTokenEvent {
   delta: string
 }
 
+export interface SseReferencePoint {
+  point: string
+  hit: boolean
+}
+
 export interface SseGradeEvent {
   order: number
   score: number
   feedback: string
   degraded: boolean
-  referencePoints: string[]
+  referencePoints?: SseReferencePoint[]
 }
 
 export interface SseErrorEvent {

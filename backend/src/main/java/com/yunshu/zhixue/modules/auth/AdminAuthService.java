@@ -18,6 +18,7 @@ import com.yunshu.zhixue.modules.system.service.OperationLogRecorder;
 import com.yunshu.zhixue.security.Audience;
 import com.yunshu.zhixue.security.JwtPayload;
 import com.yunshu.zhixue.security.JwtTokenProvider;
+import com.yunshu.zhixue.security.RequestRateLimiter;
 import com.yunshu.zhixue.security.TokenBlacklist;
 import com.yunshu.zhixue.security.TokenType;
 import org.slf4j.Logger;
@@ -58,6 +59,7 @@ public class AdminAuthService {
     private final TokenBlacklist tokenBlacklist;
     private final StringRedisTemplate redis;
     private final OperationLogRecorder operationLogRecorder;
+    private final RequestRateLimiter rateLimiter;
 
     public AdminAuthService(AdminUserMapper adminUserMapper,
                             RoleMapper roleMapper,
@@ -66,7 +68,8 @@ public class AdminAuthService {
                             JwtTokenProvider tokenProvider,
                             TokenBlacklist tokenBlacklist,
                             StringRedisTemplate redis,
-                            OperationLogRecorder operationLogRecorder) {
+                            OperationLogRecorder operationLogRecorder,
+                            RequestRateLimiter rateLimiter) {
         this.adminUserMapper = adminUserMapper;
         this.roleMapper = roleMapper;
         this.permissionMapper = permissionMapper;
@@ -75,6 +78,7 @@ public class AdminAuthService {
         this.tokenBlacklist = tokenBlacklist;
         this.redis = redis;
         this.operationLogRecorder = operationLogRecorder;
+        this.rateLimiter = rateLimiter;
     }
 
     /**
@@ -84,6 +88,7 @@ public class AdminAuthService {
      */
     public AdminLoginResponse login(AdminLoginRequest request) {
         String account = request.account().trim();
+        rateLimiter.check("admin-login", AppConstants.RATE_LIMIT_ADMIN_LOGIN, "acct:" + account);
         String failKey = RedisKeys.adminLoginFail(account);
 
         if (isLocked(failKey)) {

@@ -3,6 +3,7 @@ package com.yunshu.zhixue.modules.auth;
 import com.yunshu.zhixue.common.response.ApiResponse;
 import com.yunshu.zhixue.modules.auth.dto.AdminLoginRequest;
 import com.yunshu.zhixue.modules.auth.dto.AdminLoginResponse;
+import com.yunshu.zhixue.modules.auth.dto.StudentLoginResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -25,9 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminAuthController {
 
     private final AdminAuthService authService;
+    private final PortalPreviewService portalPreviewService;
 
-    public AdminAuthController(AdminAuthService authService) {
+    public AdminAuthController(AdminAuthService authService,
+                               PortalPreviewService portalPreviewService) {
         this.authService = authService;
+        this.portalPreviewService = portalPreviewService;
     }
 
     @Operation(summary = "A-A01 后台登录（公开）")
@@ -50,6 +54,12 @@ public class AdminAuthController {
             @RequestHeader(value = "X-Refresh-Token", required = false) String refreshToken) {
         authService.logout(bearerToken(authorization), refreshToken);
         return ApiResponse.ok();
+    }
+
+    @Operation(summary = "学员端内测令牌（管理端已登录，免二次登录进入学员端）")
+    @PostMapping("/portal-preview-token")
+    public ApiResponse<StudentLoginResponse> portalPreviewToken() {
+        return ApiResponse.ok(portalPreviewService.issueTokens());
     }
 
     private String bearerToken(String authorization) {

@@ -1,0 +1,199 @@
+# ============================================================
+# 云枢智学 · 生产编排（MySQL + Redis + MinIO + 后端 + Nginx 静态站）
+#
+# 用法：
+#   cp deploy/env/.env.prod.example deploy/.env   # 填写密钥
+#   docker compose -f deploy/docker-compose.prod.yml up -d --build
+#
+# 默认只暴露 Web 端口（WEB_PORT，默认 8088）；MySQL / Redis / MinIO 仅内网访问。
+# 生产环境请在外层负载均衡或本文件前再增加 TLS 终止（HTTPS）。
+# ============================================================
+
+name: yszx-prod
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    container_name: yszx-prod-mysql
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+      - --max-connections=500
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?required}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yszx}
+      MYSQL_USER: ${MYSQL_USER:-yszx}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?required}
+      TZ: UTC
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../scripts/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - yszx-prod-net
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    container_name: yszx-prod-redis
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --requirepass
+      - ${REDIS_PASSWORD:?required}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      TZ: UTC
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - yszx-prod-net
+
+  minio:
+    image: ${MINIO_IMAGE:-pgsty/minio:latest}
+    container_name: yszx-prod-minio
+    restart: unless-stopped
+    logging: *default-logging
+    command: server /data --address ":9000" --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required}
+      TZ: UTC
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - yszx-prod-net
+
+  # 一次性迁移任务：schema.sql 初始化后补齐 Java 方向、面试题库与后续结构变更
+  migrate:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    container_name: yszx-prod-migrate
+    restart: "no"
+    logging: *default-logging
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yszx}
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:?required}
+      MIGRATIONS_DIR: /migrations
+    volumes:
+      - ../scripts/sql/migrate.sh:/migrate.sh:ro
+      - ../scripts/sql/migrations:/migrations:ro
+    entrypoint: ["/bin/sh", "/migrate.sh"]
+    networks:
+      - yszx-prod-net
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: yszx-prod-backend
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: "8080"
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yszx}
+      MYSQL_USER: ${MYSQL_USER:-yszx}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?required}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?required}
+      MINIO_BUCKET: ${MINIO_BUCKET:-yszx-media}
+      MINIO_PUBLIC_URL: /files
+      JWT_PORTAL_SECRET: ${JWT_PORTAL_SECRET:?required}
+      JWT_ADMIN_SECRET: ${JWT_ADMIN_SECRET:?required}
+      APP_DEFAULT_PASSWORD: ${APP_DEFAULT_PASSWORD:?required}
+      PREVIEW_PORTAL_LOGIN_ENABLED: "false"
+      MIMO_API_KEY: ${MIMO_API_KEY:-}
+      MIMO_BASE_URL: ${MIMO_BASE_URL:-https://api.xiaomimimo.com/v1}
+      MIMO_MODEL: ${MIMO_MODEL:-mimo-v2.6-pro}
+      MIMO_TIMEOUT_SECONDS: ${MIMO_TIMEOUT_SECONDS:-60}
+      SPRINGDOC_API_DOCS_ENABLED: "false"
+      SPRINGDOC_SWAGGER_UI_ENABLED: "false"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 45s
+    networks:
+      - yszx-prod-net
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    container_name: yszx-prod-web
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8088}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - yszx-prod-net
+
+volumes:
+  mysql-data:
+  redis-data:
+  minio-data:
+
+networks:
+  yszx-prod-net:
+    driver: bridge

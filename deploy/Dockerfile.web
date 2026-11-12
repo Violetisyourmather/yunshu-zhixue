@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+# 构建上下文：项目根目录（docker compose 中 context: ..）
+FROM node:20-alpine AS portal
+WORKDIR /app
+COPY portal-web/package.json portal-web/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm sh -c 'npm ci --no-audit --no-fund || npm install --no-audit --no-fund'
+COPY portal-web .
+RUN npm run build
+
+FROM node:20-alpine AS admin
+WORKDIR /app
+COPY admin-web/package.json admin-web/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm sh -c 'npm ci --no-audit --no-fund || npm install --no-audit --no-fund'
+COPY admin-web .
+RUN npm run build
+
+FROM nginx:1.27-alpine
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=portal /app/dist /usr/share/nginx/html
+COPY --from=admin /app/dist /usr/share/nginx/html/admin
+EXPOSE 80

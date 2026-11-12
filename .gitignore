@@ -18,3 +18,11 @@ Thumbs.db
 
 # 日志与临时文件
 *.log
+.tmp/
+
+# 部署密钥（仅保留示例）
+deploy/.env
+
+# HTTPS 证书（仅保留说明）
+deploy/certs/*
+!deploy/certs/README.md

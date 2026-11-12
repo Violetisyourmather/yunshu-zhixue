@@ -5,18 +5,25 @@ import com.yunshu.zhixue.common.constant.AppConstants;
 import com.yunshu.zhixue.common.constant.RedisKeys;
 import com.yunshu.zhixue.common.exception.BizException;
 import com.yunshu.zhixue.common.exception.ErrorCode;
+import com.yunshu.zhixue.modules.auth.dto.ResetPasswordRequest;
+import com.yunshu.zhixue.modules.auth.dto.ResetVerifyRequest;
+import com.yunshu.zhixue.modules.auth.dto.ResetVerifyResponse;
+import com.yunshu.zhixue.modules.auth.dto.SmsLoginRequest;
 import com.yunshu.zhixue.modules.auth.dto.StudentLoginRequest;
 import com.yunshu.zhixue.modules.auth.dto.StudentLoginResponse;
+import com.yunshu.zhixue.modules.auth.dto.StudentRegisterRequest;
 import com.yunshu.zhixue.modules.student.entity.Student;
 import com.yunshu.zhixue.modules.student.mapper.StudentMapper;
 import com.yunshu.zhixue.security.Audience;
 import com.yunshu.zhixue.security.JwtPayload;
 import com.yunshu.zhixue.security.JwtTokenProvider;
+import com.yunshu.zhixue.security.RequestRateLimiter;
 import com.yunshu.zhixue.security.TokenBlacklist;
 import com.yunshu.zhixue.security.TokenType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,6 +33,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 学员端认证（P-A03 / P-A07 / P-A08）：
@@ -48,17 +56,23 @@ public class PortalAuthService {
     private final JwtTokenProvider tokenProvider;
     private final TokenBlacklist tokenBlacklist;
     private final StringRedisTemplate redis;
+    private final SmsCodeService smsCodeService;
+    private final RequestRateLimiter rateLimiter;
 
     public PortalAuthService(StudentMapper studentMapper,
                              PasswordEncoder passwordEncoder,
                              JwtTokenProvider tokenProvider,
                              TokenBlacklist tokenBlacklist,
-                             StringRedisTemplate redis) {
+                             StringRedisTemplate redis,
+                             SmsCodeService smsCodeService,
+                             RequestRateLimiter rateLimiter) {
         this.studentMapper = studentMapper;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.tokenBlacklist = tokenBlacklist;
         this.redis = redis;
+        this.smsCodeService = smsCodeService;
+        this.rateLimiter = rateLimiter;
     }
 
     /**
@@ -68,6 +82,7 @@ public class PortalAuthService {
      */
     public StudentLoginResponse login(StudentLoginRequest request) {
         String account = request.account().trim();
+        rateLimiter.check("login", AppConstants.RATE_LIMIT_LOGIN, "acct:" + account);
         String failKey = RedisKeys.portalLoginFail(account);
 
         if (isLocked(failKey)) {
@@ -86,6 +101,115 @@ public class PortalAuthService {
         clearFailures(failKey);
         touchLastLogin(student.getId());
         return issueTokens(student);
+    }
+
+    /**
+     * P-A02 注册：校验短信验证码后创建学员并直接登录。
+     *
+     * @throws BizException 20001 手机号已注册 / 20002 验证码错误或失效
+     */
+    public StudentLoginResponse register(StudentRegisterRequest request) {
+        String mobile = request.mobile();
+        rateLimiter.check("register", AppConstants.RATE_LIMIT_REGISTER, "acct:" + mobile);
+        if (findByMobile(mobile) != null) {
+            throw new BizException(ErrorCode.CONTACT_OCCUPIED, "该手机号已注册，请直接登录");
+        }
+        smsCodeService.verify(mobile, "register", request.code());
+
+        Student student = new Student();
+        student.setMobile(mobile);
+        student.setPasswordHash(passwordEncoder.encode(request.password()));
+        student.setNickname("用户" + mobile.substring(mobile.length() - 4));
+        student.setAvatar(null);
+        student.setGender(0);
+        student.setGuideFinished(0);
+        student.setStatus(1);
+        try {
+            studentMapper.insert(student);
+        } catch (DuplicateKeyException ex) {
+            throw new BizException(ErrorCode.CONTACT_OCCUPIED, "该手机号已注册，请直接登录");
+        }
+        touchLastLogin(student.getId());
+        return issueTokens(student);
+    }
+
+    /**
+     * P-A04 手机验证码登录：验证码一次性使用，账号不存在统一返回账号或密码错误。
+     */
+    public StudentLoginResponse loginBySms(SmsLoginRequest request) {
+        rateLimiter.check("login-sms", AppConstants.RATE_LIMIT_LOGIN_SMS,
+                "acct:" + request.mobile());
+        smsCodeService.verify(request.mobile(), "login", request.code());
+        Student student = findByMobile(request.mobile());
+        if (student == null || !student.enabled()) {
+            // 未注册与已禁用分开提示会让攻击者枚举账号；这里统一按凭证失败处理
+            throw new BizException(student == null
+                    ? ErrorCode.BAD_CREDENTIALS
+                    : ErrorCode.STUDENT_DISABLED);
+        }
+        touchLastLogin(student.getId());
+        return issueTokens(student);
+    }
+
+    /**
+     * P-A05 找回密码·验证手机验证码：通过后发放 10 分钟一次性重置令牌。
+     */
+    public ResetVerifyResponse verifyResetCode(ResetVerifyRequest request) {
+        rateLimiter.check("reset", AppConstants.RATE_LIMIT_RESET, "acct:" + request.mobile());
+        Student student = findByMobile(request.mobile());
+        if (student == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "该手机号尚未注册");
+        }
+        smsCodeService.verify(request.mobile(), "reset", request.code());
+
+        String resetToken = UUID.randomUUID().toString();
+        try {
+            redis.opsForValue().set(RedisKeys.RESET_TOKEN + resetToken,
+                    String.valueOf(student.getId()),
+                    Duration.ofMinutes(AppConstants.RESET_TOKEN_TTL_MINUTES));
+        } catch (DataAccessException ex) {
+            log.error("重置令牌写入失败：studentId={}", student.getId(), ex);
+            throw new BizException(ErrorCode.INTERNAL_ERROR, "重置服务暂不可用");
+        }
+        return new ResetVerifyResponse(resetToken);
+    }
+
+    /**
+     * P-A06 找回密码·重置：重置令牌一次性使用，成功后立即失效。
+     */
+    public void resetPassword(ResetPasswordRequest request) {
+        rateLimiter.check("reset", AppConstants.RATE_LIMIT_RESET);
+        String key = RedisKeys.RESET_TOKEN + request.resetToken();
+        String studentIdValue;
+        try {
+            studentIdValue = redis.opsForValue().get(key);
+        } catch (DataAccessException ex) {
+            log.error("重置令牌读取失败", ex);
+            throw new BizException(ErrorCode.INTERNAL_ERROR, "重置服务暂不可用");
+        }
+        if (studentIdValue == null) {
+            throw new BizException(ErrorCode.CONFLICT, "重置链接已失效，请重新验证");
+        }
+
+        long studentId;
+        try {
+            studentId = Long.parseLong(studentIdValue);
+        } catch (NumberFormatException ex) {
+            throw new BizException(ErrorCode.CONFLICT, "重置链接已失效，请重新验证");
+        }
+        Student student = studentMapper.selectById(studentId);
+        if (student == null) {
+            throw new BizException(ErrorCode.CONFLICT, "重置链接已失效，请重新验证");
+        }
+
+        try {
+            redis.delete(key);
+        } catch (DataAccessException ex) {
+            log.error("重置令牌删除失败：studentId={}", studentId, ex);
+        }
+        studentMapper.update(null, Wrappers.<Student>lambdaUpdate()
+                .eq(Student::getId, studentId)
+                .set(Student::getPasswordHash, passwordEncoder.encode(request.newPassword())));
     }
 
     /**
@@ -109,13 +233,17 @@ public class PortalAuthService {
         revokeQuietly(refreshToken, TokenType.REFRESH);
     }
 
+    private Student findByMobile(String mobile) {
+        return studentMapper.selectOne(
+                Wrappers.<Student>lambdaQuery().eq(Student::getMobile, mobile));
+    }
+
     /**
      * 手机号优先、邮箱兜底。邮箱虽然由唯一索引保障，仍按「命中多条即失败」防御，
      * 避免大小写/排序规则差异导致的账号枚举（P-A03）。
      */
     private Student findByAccount(String account) {
-        Student student = studentMapper.selectOne(
-                Wrappers.<Student>lambdaQuery().eq(Student::getMobile, account));
+        Student student = findByMobile(account);
         if (student != null) {
             return student;
         }

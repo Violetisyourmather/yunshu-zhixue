@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { computed, ref, watch, type Component } from 'vue'
+import { computed, onMounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type MenuInstance } from 'element-plus'
 import {
   ArrowDown,
+  Bell,
   Collection,
   DataBoard,
   Menu as MenuIcon,
   Setting,
   User
 } from '@element-plus/icons-vue'
+import { portalPreviewTokens } from '@/api/auth'
+import { getQuestionStats } from '@/api/questions'
 import { authBypassEnabled } from '@/auth/preview'
 import { usePermissionStore } from '@/store/permission'
 import { useSiteStore } from '@/store/site'
@@ -22,6 +25,10 @@ const permissionStore = usePermissionStore()
 const siteStore = useSiteStore()
 
 const sidebarOpen = ref(false)
+const pendingQuestionCount = ref(0)
+
+/** 学员端地址：生产与后台同域（02 §2.4），开发环境由 .env 指定独立端口。 */
+const portalBase = (import.meta.env.VITE_PORTAL_BASE_URL ?? '').replace(/\/+$/, '')
 
 /** 详情页（如 /content/routes/:id）仍高亮其所属菜单 */
 const activeMenu = computed(() => {
@@ -72,10 +79,40 @@ const breadcrumbs = computed(() => {
 const avatarText = computed(() => userStore.displayName.slice(0, 1))
 const roleLabel = computed(() => (userStore.isSuperAdmin ? '超级管理员' : '管理员'))
 
-/** 菜单分组默认全部展开，点击分组标题可折叠 */
+const menuRef = ref<MenuInstance>()
+
+/** 当前激活菜单所属的分组；顶部入口（如数据看板）不属于任何分组 */
+const activeGroupTitle = computed(() => {
+  for (const group of permissionStore.visibleGroups) {
+    if (!group.title) {
+      continue
+    }
+    if (group.entries.some((entry) => entry.path === activeMenu.value)) {
+      return group.title
+    }
+  }
+  return undefined
+})
+
+/** 刷新后只展开当前激活菜单所在分组，其余分组折叠 */
 const defaultOpenedGroups = computed(() =>
-  permissionStore.visibleGroups.map((group) => group.title).filter(Boolean)
+  activeGroupTitle.value ? [activeGroupTitle.value] : []
 )
+
+/** 路由切换时自动展开当前分组并收起其他分组 */
+watch(activeGroupTitle, (title) => {
+  if (!menuRef.value) {
+    return
+  }
+  for (const group of permissionStore.visibleGroups) {
+    if (group.title && group.title !== title) {
+      menuRef.value.close(group.title)
+    }
+  }
+  if (title) {
+    menuRef.value.open(title)
+  }
+})
 
 /** 一级菜单图标（分组标题 + 顶层入口） */
 const MENU_GROUP_ICONS: Record<string, Component> = {
@@ -129,11 +166,64 @@ async function handleLogout(): Promise<void> {
   await router.replace('/login')
 }
 
+/**
+ * 进入学员端内测账号：后端签发学员端令牌后，以 URL fragment 传给学员端
+ * （fragment 不会发送到服务端），学员端写入登录态即完成免登录。
+ * 同步先开新标签页，避免 await 之后被浏览器拦截弹窗。
+ */
+async function openPortalPreview(): Promise<void> {
+  const tab = window.open('', '_blank')
+  try {
+    const tokens = await portalPreviewTokens()
+    const origin = portalBase || window.location.origin
+    const hash = `#accessToken=${encodeURIComponent(tokens.accessToken)}&refreshToken=${encodeURIComponent(tokens.refreshToken)}`
+    const url = `${origin}/preview-login${hash}`
+    if (tab) {
+      tab.opener = null
+      tab.location.replace(url)
+    } else {
+      window.location.href = url
+    }
+  } catch {
+    // 错误提示由 HTTP 拦截器统一弹出
+    tab?.close()
+  }
+}
+
+/** 通知铃铛：角标为待审核题目数，点击进入题库并筛选「待审核」。 */
+async function loadPendingQuestions(): Promise<void> {
+  if (!userStore.hasPermission('question:view')) {
+    return
+  }
+  try {
+    const stats = await getQuestionStats()
+    pendingQuestionCount.value = stats.pending
+  } catch {
+    pendingQuestionCount.value = 0
+  }
+}
+
+function goPendingQuestions(): void {
+  void router.push({ path: '/content/questions', query: { status: '3' } })
+}
+
+function openPortalLogin(): void {
+  window.open(`${portalBase || window.location.origin}/login`, '_blank', 'noopener')
+}
+
 function handleCommand(command: string): void {
-  if (command === 'logout') {
+  if (command === 'portal') {
+    void openPortalPreview()
+  } else if (command === 'portal-login') {
+    openPortalLogin()
+  } else if (command === 'logout') {
     void handleLogout()
   }
 }
+
+onMounted(() => {
+  void loadPendingQuestions()
+})
 </script>
 
 <template>
@@ -150,8 +240,10 @@ function handleCommand(command: string): void {
 
       <div class="admin-menu-scroll">
         <el-menu
+          ref="menuRef"
           :default-active="activeMenu"
           :default-openeds="defaultOpenedGroups"
+          unique-opened
           router
           class="admin-menu"
           background-color="#15181d"
@@ -209,27 +301,48 @@ function handleCommand(command: string): void {
           </el-breadcrumb>
         </div>
 
-        <el-dropdown trigger="click" @command="handleCommand">
-          <span class="admin-user">
-            <img
-              v-if="siteStore.defaultAvatar"
-              class="admin-avatar"
-              :src="siteStore.defaultAvatar"
-              alt="头像"
+        <div class="header-right">
+          <el-badge
+            v-if="userStore.hasPermission('question:view')"
+            :value="pendingQuestionCount"
+            :max="99"
+            :hidden="pendingQuestionCount === 0"
+            class="admin-bell"
+          >
+            <el-button
+              class="bell-button"
+              text
+              circle
+              :icon="Bell"
+              aria-label="通知：待审核题目"
+              @click="goPendingQuestions"
             />
-            <span v-else class="admin-avatar">{{ avatarText }}</span>
-            <span class="admin-user-meta">
-              <span class="admin-user-name">{{ userStore.displayName }}</span>
-              <span class="admin-user-role">{{ roleLabel }}</span>
+          </el-badge>
+
+          <el-dropdown trigger="click" @command="handleCommand">
+            <span class="admin-user">
+              <img
+                v-if="siteStore.defaultAvatar"
+                class="admin-avatar"
+                :src="siteStore.defaultAvatar"
+                alt="头像"
+              />
+              <span v-else class="admin-avatar">{{ avatarText }}</span>
+              <span class="admin-user-meta">
+                <span class="admin-user-name">{{ userStore.displayName }}</span>
+                <span class="admin-user-role">{{ roleLabel }}</span>
+              </span>
+              <el-icon class="admin-user-arrow"><ArrowDown /></el-icon>
             </span>
-            <el-icon class="admin-user-arrow"><ArrowDown /></el-icon>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="portal-login">返回学员前台</el-dropdown-item>
+                <el-dropdown-item command="portal">学员端（内测账号）</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
       </el-header>
 
       <el-main class="admin-main">
@@ -453,6 +566,24 @@ function handleCommand(command: string): void {
 .admin-breadcrumb :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
   color: var(--ink);
   font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-bell {
+  display: inline-flex;
+}
+
+.bell-button {
+  color: var(--ink-3);
+}
+
+.bell-button:hover {
+  color: var(--jade);
 }
 
 .admin-user {

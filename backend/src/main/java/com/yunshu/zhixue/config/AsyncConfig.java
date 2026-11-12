@@ -13,6 +13,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class AsyncConfig {
 
     public static final String OPERATION_LOG_EXECUTOR = "operationLogExecutor";
+    public static final String INTERVIEW_EXECUTOR = "interviewExecutor";
 
     @Bean(OPERATION_LOG_EXECUTOR)
     public ThreadPoolTaskExecutor operationLogExecutor() {
@@ -25,6 +26,20 @@ public class AsyncConfig {
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(10);
+        executor.initialize();
+        return executor;
+    }
+
+    /** AI 面试 SSE 评分线程池：评分请求可能持续数秒，与操作日志隔离。 */
+    @Bean(INTERVIEW_EXECUTOR)
+    public ThreadPoolTaskExecutor interviewExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(4);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("interview-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

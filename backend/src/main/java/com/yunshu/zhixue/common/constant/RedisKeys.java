@@ -28,6 +28,16 @@ public final class RedisKeys {
     public static final String INTERVIEW_TEMP = "interview:temp:";
     /** 幂等键（TTL 24h）。 */
     public static final String IDEMPOTENCY = "idempotency:";
+    /** 课程 Excel 导入预览暂存（TTL 30min）。 */
+    public static final String COURSE_IMPORT_PREVIEW = "course:import:preview:";
+    /** 题库 Excel 导入预览暂存（TTL 30min）。 */
+    public static final String QUESTION_IMPORT_PREVIEW = "question:import:preview:";
+    /** 面试题库 Excel 导入预览暂存（TTL 30min）。 */
+    public static final String INTERVIEW_IMPORT_PREVIEW = "interview:import:preview:";
+    /** 面试题库 Markdown 导入预览暂存（TTL 30min）。 */
+    public static final String INTERVIEW_IMPORT_MARKDOWN = "interview:import:markdown:";
+    /** 管理端数据看板概览缓存（TTL 5min，A-D01）。 */
+    public static final String DASHBOARD_OVERVIEW = "dashboard:overview";
 
     /** 验证码：{@code sms:code:{type}:{mobile}}，type ∈ register/login/reset。 */
     public static String smsCode(String type, String mobile) {

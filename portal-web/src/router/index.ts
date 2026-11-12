@@ -79,6 +79,12 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   {
+    path: '/preview-login',
+    name: 'preview-login',
+    component: () => import('@/views/auth/PreviewLoginView.vue'),
+    meta: { title: '内测登录' }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/auth/LoginView.vue'),

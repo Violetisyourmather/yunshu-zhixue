@@ -16,6 +16,12 @@ Java 17 + Spring Boot 3 的模块化单体，按业务领域分包，模块间�
 - 时间序列化：UTC 存储 ↔ Asia/Shanghai 输出（04 §2.11、D17）
 - 对象存储抽象 `StorageService` + MinIO 实现（自动建桶与公开读策略）
 - OpenAPI 文档、操作日志异步线程池、Actuator 健康检查
+- 学员端首页统计（P-H01 ~ P-H03）：平台数据、热门学科、学习概览，只读聚合查询
+- 学员端账号与个人中心：短信验证码、注册、密码/验证码登录、找回密码、退出登录、个人资料修改、头像上传、新手引导（开发环境短信 mock）
+- 学员端学习路线：学科卡片、路线列表与详情、课程完成标记 / 取消、进度统计
+- 学员端题库：学科 / 阶段 / 题目公开浏览、筛选与分页、题目详情按登录态裁剪答案与解析
+- 学员端刷题：顺序 / 随机组卷、客观题服务端重判、简答题 AI 批改（MiMo，OpenAI 兼容协议）、作答明细与错题本状态维护
+- 学员端错题本：统计卡、Top3、筛选排序、批量掌握 / 移除、错题重做组卷
 - 12 个业务模块分包与职责边界说明
 
 未实现（按模块逐步落地）：全部业务 Controller / Service / Mapper / Entity、AI 能力层、
@@ -88,6 +94,11 @@ java -jar target/yunshu-zhixue-backend-0.1.0-SNAPSHOT.jar --spring.profiles.acti
 | `JWT_PORTAL_SECRET` / `JWT_ADMIN_SECRET` | 开发默认值 | **上线必须替换**，≥32 字节 |
 | `MINIO_ENDPOINT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` | `127.0.0.1:9000` / `yszxadmin` / `yszx_minio_2026` / `yszx-media` | 对象存储 |
 | `APP_DEFAULT_PASSWORD` | `Yszx@123456` | 后台重置密码的默认值（D4-10 Q9） |
+| `PREVIEW_PORTAL_LOGIN_ENABLED` | 生产 `false` / dev `true` | 后台「学员端（内测账号）」免登录通道开关 |
+| `PREVIEW_STUDENT_MOBILE` | `13800138000` | 上述通道使用的内测学员手机号 |
+| `MIMO_API_KEY` | 空 | 简答题 AI 批改的模型 Key，仅从环境变量读取 |
+| `MIMO_BASE_URL` / `MIMO_MODEL` | `https://api.xiaomimimo.com/v1` / `mimo-v2.6-pro` | OpenAI 兼容模型地址与模型名 |
+| `MIMO_TIMEOUT_SECONDS` | `60` | AI 请求读超时；超时后降级为要点匹配 |
 
 ## 开发约定
 
