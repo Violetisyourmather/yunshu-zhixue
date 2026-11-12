@@ -94,12 +94,19 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // 认证相关接口公开（refresh 由 X-Refresh-Token 自行校验）
                         .requestMatchers("/api/portal/v1/auth/**").permitAll()
-                        // 首页公开
-                        .requestMatchers("/api/portal/v1/home/**").permitAll()
+                        // 首页公开数据；学习概览（P-H03）需登录，故不下放整个 /home/**
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/portal/v1/home/platform-stats",
+                                "/api/portal/v1/home/hot-subjects").permitAll()
                         // 平台基本信息（名称/描述/Logo/默认头像）需在未登录时渲染品牌
                         .requestMatchers(HttpMethod.GET, "/api/portal/v1/settings").permitAll()
                         // 题库中心浏览公开；解析与答案按登录态裁剪（D4-2）
-                        .requestMatchers(HttpMethod.GET, "/api/portal/v1/bank/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/portal/v1/bank/**",
+                                "/api/portal/v1/subjects",
+                                "/api/portal/v1/subjects/**",
+                                "/api/portal/v1/questions",
+                                "/api/portal/v1/questions/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(handler -> handler
                         .authenticationEntryPoint((request, response, ex) ->

@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import type { LoginResult } from '@/types/api'
 
 /**
- * 管理端登录态：localStorage + 响应式引用。
+ * 管理端登录态：localStorage（记住登录）或 sessionStorage（关闭浏览器失效）。
  * 令牌键带 `admin` 前缀，与学员端令牌域物理隔离（04 §2.2）。
  */
 const ACCESS_KEY = 'yszx_admin_access_token'
@@ -10,10 +10,18 @@ const REFRESH_KEY = 'yszx_admin_refresh_token'
 const NAME_KEY = 'yszx_admin_name'
 const ROLE_KEY = 'yszx_admin_role'
 
-export const accessToken = ref(localStorage.getItem(ACCESS_KEY) ?? '')
-export const refreshToken = ref(localStorage.getItem(REFRESH_KEY) ?? '')
-export const adminName = ref(localStorage.getItem(NAME_KEY) ?? '')
-export const roleCode = ref(localStorage.getItem(ROLE_KEY) ?? '')
+function readStored(key: string): string {
+  return localStorage.getItem(key) ?? sessionStorage.getItem(key) ?? ''
+}
+
+/** 刷新令牌轮换时沿用登录时选择的持久化方式。 */
+let persistSession = localStorage.getItem(ACCESS_KEY) !== null
+  || sessionStorage.getItem(ACCESS_KEY) === null
+
+export const accessToken = ref(readStored(ACCESS_KEY))
+export const refreshToken = ref(readStored(REFRESH_KEY))
+export const adminName = ref(readStored(NAME_KEY))
+export const roleCode = ref(readStored(ROLE_KEY))
 
 type TokensChangedListener = (tokens: LoginResult) => void
 const tokenListeners = new Set<TokensChangedListener>()
@@ -32,19 +40,24 @@ export function getRefreshToken(): string {
   return refreshToken.value
 }
 
-export function setTokens(tokens: LoginResult): void {
+/** 保存双令牌；remember=true 写入 localStorage，否则写入 sessionStorage。 */
+export function setTokens(tokens: LoginResult, remember = persistSession): void {
+  persistSession = remember
+  clearStorage()
+  const storage = remember ? localStorage : sessionStorage
+  storage.setItem(ACCESS_KEY, tokens.accessToken)
+  storage.setItem(REFRESH_KEY, tokens.refreshToken)
   accessToken.value = tokens.accessToken
   refreshToken.value = tokens.refreshToken
-  localStorage.setItem(ACCESS_KEY, tokens.accessToken)
-  localStorage.setItem(REFRESH_KEY, tokens.refreshToken)
   tokenListeners.forEach((listener) => listener(tokens))
 }
 
-export function setAdminIdentity(name: string, role: string): void {
+export function setAdminIdentity(name: string, role: string, remember = persistSession): void {
+  const storage = remember ? localStorage : sessionStorage
   adminName.value = name
   roleCode.value = role
-  localStorage.setItem(NAME_KEY, name)
-  localStorage.setItem(ROLE_KEY, role)
+  storage.setItem(NAME_KEY, name)
+  storage.setItem(ROLE_KEY, role)
 }
 
 export function clearTokens(): void {
@@ -52,8 +65,16 @@ export function clearTokens(): void {
   refreshToken.value = ''
   adminName.value = ''
   roleCode.value = ''
+  clearStorage()
+}
+
+function clearStorage(): void {
   localStorage.removeItem(ACCESS_KEY)
   localStorage.removeItem(REFRESH_KEY)
   localStorage.removeItem(NAME_KEY)
   localStorage.removeItem(ROLE_KEY)
+  sessionStorage.removeItem(ACCESS_KEY)
+  sessionStorage.removeItem(REFRESH_KEY)
+  sessionStorage.removeItem(NAME_KEY)
+  sessionStorage.removeItem(ROLE_KEY)
 }

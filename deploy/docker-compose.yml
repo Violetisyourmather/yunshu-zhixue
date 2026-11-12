@@ -120,6 +120,33 @@ services:
     networks:
       - yszx-net
 
+  # ----------------------------------------------------------
+  # 一次性迁移任务：在 schema.sql 初始化后补齐 Java 方向与面试题库，
+  # 并执行 scripts/sql/migrations 下的后续变更。
+  # 手动执行：docker compose -f deploy/docker-compose.yml run --rm migrate
+  # ----------------------------------------------------------
+  migrate:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    container_name: yszx-migrate
+    restart: "no"
+    logging: *default-logging
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-yszx}
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-yszx_root_2026}
+      MIGRATIONS_DIR: /migrations
+    volumes:
+      - ../scripts/sql/migrate.sh:/migrate.sh:ro
+      - ../scripts/sql/migrations:/migrations:ro
+    entrypoint: ["/bin/sh", "/migrate.sh"]
+    networks:
+      - yszx-net
+
 volumes:
   mysql-data:
     name: yszx-mysql-data

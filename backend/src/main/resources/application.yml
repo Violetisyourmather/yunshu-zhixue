@@ -42,8 +42,9 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      # 头像不限制业务尺寸与文件大小，仅保留请求体保护上限
+      max-file-size: 50MB
+      max-request-size: 50MB
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
@@ -76,6 +77,15 @@ management:
       show-details: never
 
 app:
+  # AI 能力层（OpenAI 兼容协议，默认小米 MiMo）；Key 只从环境变量读取
+  ai:
+    base-url: ${MIMO_BASE_URL:https://api.xiaomimimo.com/v1}
+    api-key: ${MIMO_API_KEY:}
+    model: ${MIMO_MODEL:mimo-v2.6-pro}
+    timeout-seconds: ${MIMO_TIMEOUT_SECONDS:60}
+  # 短信验证码：开发环境 mock=true 时回显/记录验证码，生产必须接入真实短信服务
+  sms:
+    mock: ${SMS_MOCK:false}
   # 双端独立 JWT 令牌域（D7）；secret 至少 32 字符（HS256）
   jwt:
     portal:
@@ -95,6 +105,10 @@ app:
     public-url: ${MINIO_PUBLIC_URL:http://127.0.0.1:9000}
   # 后台用户重置密码的默认值（D4-10 Q9，不落 system_setting）
   default-password: ${APP_DEFAULT_PASSWORD:Yszx@123456}
+  # 管理端「进入学员端」内测通道：生产默认关闭，仅内测环境显式开启
+  preview:
+    portal-login-enabled: ${PREVIEW_PORTAL_LOGIN_ENABLED:false}
+    portal-student-mobile: ${PREVIEW_STUDENT_MOBILE:13800138000}
 
 logging:
   level:

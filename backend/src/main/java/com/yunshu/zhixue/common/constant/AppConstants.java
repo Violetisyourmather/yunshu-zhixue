@@ -34,12 +34,25 @@ public final class AppConstants {
     public static final int SMS_CODE_TTL_MINUTES = 5;
     public static final int SMS_RESEND_COOLDOWN_SECONDS = 60;
     public static final int SMS_DAILY_LIMIT = 10;
+    /** 找回密码一次性令牌有效期。 */
+    public static final int RESET_TOKEN_TTL_MINUTES = 10;
     public static final int LOGIN_MAX_FAILURES = 5;
     public static final int LOGIN_LOCK_MINUTES = 5;
     public static final int VERIFY_CODE_MAX_FAILURES = 5;
+    /** 通用接口频控窗口：60 秒（按 IP 与账号双维度分别计数，阈值不向前端暴露）。 */
+    public static final int RATE_LIMIT_WINDOW_SECONDS = 60;
+    public static final int RATE_LIMIT_LOGIN = 20;
+    public static final int RATE_LIMIT_LOGIN_SMS = 10;
+    public static final int RATE_LIMIT_REGISTER = 10;
+    public static final int RATE_LIMIT_RESET = 10;
+    public static final int RATE_LIMIT_SMS = 10;
+    public static final int RATE_LIMIT_INTERVIEW_START = 10;
+    public static final int RATE_LIMIT_ADMIN_LOGIN = 20;
 
     // ---------- 导入 ----------
     public static final int IMPORT_MAX_ROWS = 500;
+    /** 导入预览暂存 TTL：30 分钟（两段式导入的幂等窗口）。 */
+    public static final int IMPORT_PREVIEW_TTL_MINUTES = 30;
 
     // ---------- 系统管理 ----------
     /** 内置超级管理员角色编码（03 种子数据，仅该角色可访问角色管理）。 */

@@ -6,12 +6,13 @@ import type {
   ResetPasswordPayload,
   ResetVerifyPayload,
   SmsCodePayload,
+  SmsCodeResult,
   SmsLoginPayload
 } from '@/types/api'
 
 /** P-A01 发送短信验证码（公开） */
 export function sendSmsCode(payload: SmsCodePayload) {
-  return request.post<{ expireSeconds: number }>('/auth/sms-code', payload, { skipErrorMessage: true })
+  return request.post<SmsCodeResult>('/auth/sms-code', payload, { skipErrorMessage: true })
 }
 
 /** P-A02 注册（公开） */

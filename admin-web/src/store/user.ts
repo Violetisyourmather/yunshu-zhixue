@@ -49,16 +49,16 @@ export const useUserStore = defineStore('user', () => {
     permissions.value = new Set(claims?.perms ?? [])
   }
 
-  function applySession(result: LoginResult, account: string): void {
-    setTokens(result)
+  function applySession(result: LoginResult, account: string, remember: boolean): void {
+    setTokens(result, remember)
     const profile = result.admin
-    setAdminIdentity(profile?.username ?? account, profile?.roleCode ?? '')
+    setAdminIdentity(profile?.username ?? account, profile?.roleCode ?? '', remember)
     permissions.value = new Set(profile?.permissions ?? decodeJwtPayload(result.accessToken)?.perms ?? [])
   }
 
-  async function login(payload: AdminLoginPayload): Promise<void> {
+  async function login(payload: AdminLoginPayload, remember = true): Promise<void> {
     const result = await authApi.login(payload)
-    applySession(result, payload.account)
+    applySession(result, payload.account, remember)
   }
 
   function hasPermission(code: string): boolean {

@@ -23,14 +23,14 @@ import java.util.UUID;
 /**
  * A-F01 图片上传（JPG/PNG，服务端校验格式与尺寸）。
  *
- * <p>Logo 建议 256×256、默认头像 200×200（04 §2.10），服务端统一限制单边不超过 256；
- * 对象名由服务端生成 UUID，禁止用户可控路径。</p>
+ * <p>Logo / 通用图片单边不超过 256；学员头像不限制尺寸与文件大小，
+ * 但仍校验 JPG/PNG 格式。对象名由服务端生成 UUID，禁止用户可控路径。</p>
  */
 @Service
 public class ImageUploadService {
 
     private static final long MAX_FILE_BYTES = 5L * 1024 * 1024;
-    private static final int MAX_DIMENSION = 256;
+    private static final int MAX_IMAGE_DIMENSION = 256;
     private static final DateTimeFormatter DATE_PATH = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     private final StorageService storageService;
@@ -41,11 +41,22 @@ public class ImageUploadService {
         this.operationLogRecorder = operationLogRecorder;
     }
 
+    /** A-F01 管理端图片上传：单边不超过 256，文件不超过 5MB。 */
     public ImageUploadResponse upload(MultipartFile file) {
+        return upload(file, MAX_IMAGE_DIMENSION, MAX_FILE_BYTES, "images", "上传图片");
+    }
+
+    /** P-M05 学员头像上传：不限制尺寸与文件大小，仅校验 JPG/PNG。 */
+    public ImageUploadResponse uploadAvatar(MultipartFile file) {
+        return upload(file, null, 0L, "avatars", "上传头像");
+    }
+
+    private ImageUploadResponse upload(MultipartFile file, Integer maxDimension, long maxFileBytes,
+                                       String folder, String action) {
         if (file == null || file.isEmpty()) {
             throw new BizException(ErrorCode.FILE_INVALID, "请选择要上传的图片");
         }
-        if (file.getSize() > MAX_FILE_BYTES) {
+        if (maxFileBytes > 0 && file.getSize() > maxFileBytes) {
             throw new BizException(ErrorCode.FILE_INVALID, "图片大小不能超过 5MB");
         }
         byte[] bytes;
@@ -56,15 +67,17 @@ public class ImageUploadService {
         }
 
         ImageInfo image = inspect(bytes);
-        if (image.width() > MAX_DIMENSION || image.height() > MAX_DIMENSION) {
-            throw new BizException(ErrorCode.FILE_INVALID, "图片尺寸不能超过 " + MAX_DIMENSION + "×" + MAX_DIMENSION);
+        if (maxDimension != null
+                && (image.width() > maxDimension || image.height() > maxDimension)) {
+            throw new BizException(ErrorCode.FILE_INVALID,
+                    "图片尺寸不能超过 " + maxDimension + "×" + maxDimension);
         }
 
-        String objectName = "images/" + LocalDate.now(AppConstants.BUSINESS_ZONE).format(DATE_PATH)
+        String objectName = folder + "/" + LocalDate.now(AppConstants.BUSINESS_ZONE).format(DATE_PATH)
                 + "/" + UUID.randomUUID().toString().replace("-", "") + "." + image.extension();
         String url = storageService.upload(new ByteArrayInputStream(bytes), bytes.length,
                 image.contentType(), objectName);
-        operationLogRecorder.record(OperationActions.CREATE, "文件", "上传图片：" + objectName);
+        operationLogRecorder.record(OperationActions.CREATE, "文件", action + "：" + objectName);
         return new ImageUploadResponse(url);
     }
 

@@ -1,0 +1,274 @@
+[
+ {
+  "file": "AI面试题.pdf",
+  "pages": 35,
+  "mode": "heading",
+  "level": 16.5,
+  "levels": [
+   16.5,
+   15.0
+  ],
+  "questions": 135,
+  "empty_answers": 7,
+  "avg_answer_len": 126.8,
+  "markers": 0,
+  "skipped": [],
+  "samples": [
+   "平时工作学习的用AI做什么",
+   "AI大模型选择",
+   "谈谈AI大模型的选型怎么做的"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\AI面试题.md"
+ },
+ {
+  "file": "JVM虚拟机篇.pdf",
+  "pages": 62,
+  "mode": "heading",
+  "level": 15.0,
+  "levels": [
+   15.0,
+   13.5
+  ],
+  "questions": 28,
+  "empty_answers": 0,
+  "avg_answer_len": 706.2,
+  "markers": 25,
+  "skipped": [],
+  "samples": [
+   "JVM由那些部分组成，运行流程是什么？",
+   "什么是程序计数器？",
+   "你能给我详细的介绍Java堆吗?"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\JVM虚拟机篇.md"
+ },
+ {
+  "file": "Java面试.pdf",
+  "pages": 158,
+  "mode": "heading",
+  "level": 16.5,
+  "levels": [
+   16.5,
+   15.0
+  ],
+  "questions": 299,
+  "empty_answers": 15,
+  "avg_answer_len": 320.3,
+  "markers": 0,
+  "skipped": [],
+  "samples": [
+   "String/StringBuffer/StringBuilder区别",
+   "反射机制及主要用到的方法",
+   "JVM内存结构"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\Java面试.md"
+ },
+ {
+  "file": "MySQL篇.pdf",
+  "pages": 5,
+  "mode": "qa",
+  "level": null,
+  "levels": [],
+  "questions": 19,
+  "empty_answers": 0,
+  "avg_answer_len": 171.1,
+  "markers": 19,
+  "skipped": [],
+  "samples": [
+   "MySQL中，如何定位慢查询？",
+   "了解过索引吗？（什么是索引）",
+   "索引的底层数据结构了解过吗？"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\MySQL篇.md"
+ },
+ {
+  "file": "Python+AI面试题.pdf",
+  "pages": 30,
+  "mode": "heading",
+  "level": 15.0,
+  "levels": [
+   16.5,
+   15.0,
+   13.5
+  ],
+  "questions": 146,
+  "empty_answers": 11,
+  "avg_answer_len": 200.2,
+  "markers": 0,
+  "skipped": [],
+  "samples": [
+   "python的基本数据类型和数据容器？",
+   "在接受参数时，*args 和 **kwargs的区别是什么",
+   "装饰器、生成器、迭代器、列表推导式？上下文管理器？"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\Python+AI面试题.md"
+ },
+ {
+  "file": "Redis篇.pdf",
+  "pages": 7,
+  "mode": "qa",
+  "level": null,
+  "levels": [],
+  "questions": 27,
+  "empty_answers": 0,
+  "avg_answer_len": 433.2,
+  "markers": 27,
+  "skipped": [],
+  "samples": [
+   "什么是缓存穿透？怎么解决？",
+   "你能介绍一下布隆过滤器吗？",
+   "什么是缓存击穿？怎么解决？"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\Redis篇.md"
+ },
+ {
+  "file": "SSM框架.pdf",
+  "pages": 6,
+  "mode": "qa",
+  "level": null,
+  "levels": [],
+  "questions": 18,
+  "empty_answers": 0,
+  "avg_answer_len": 99.4,
+  "markers": 19,
+  "skipped": [],
+  "samples": [
+   "Spring框架中的单例bean是线程安全的吗？",
+   "什么是AOP？",
+   "你们项目中有没有使用到AOP？"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\SSM框架.md"
+ },
+ {
+  "file": "多线程篇.pdf",
+  "pages": 72,
+  "mode": "heading",
+  "level": 15.0,
+  "levels": [
+   15.0,
+   13.5
+  ],
+  "questions": 30,
+  "empty_answers": 0,
+  "avg_answer_len": 475.6,
+  "markers": 3,
+  "skipped": [
+   "🐵参考回答",
+   "🐵参考回答",
+   "🐵参考回答",
+   "🐵参考回答",
+   "🐵参考回答",
+   "🐵参考回答"
+  ],
+  "samples": [
+   "线程和进程的区别？",
+   "并行和并发有什么区别？",
+   "创建线程的四种方式"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\多线程篇.md"
+ },
+ {
+  "file": "常见集合篇.pdf",
+  "pages": 46,
+  "mode": "heading",
+  "level": 15.0,
+  "levels": [
+   15.0,
+   13.5
+  ],
+  "questions": 18,
+  "empty_answers": 0,
+  "avg_answer_len": 804.1,
+  "markers": 20,
+  "skipped": [],
+  "samples": [
+   "为什么要进行复杂度分析？",
+   "时间复杂度",
+   "空间复杂度"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\常见集合篇.md"
+ },
+ {
+  "file": "微服务篇.pdf",
+  "pages": 5,
+  "mode": "qa",
+  "level": null,
+  "levels": [],
+  "questions": 18,
+  "empty_answers": 0,
+  "avg_answer_len": 120.3,
+  "markers": 18,
+  "skipped": [],
+  "samples": [
+   "Spring Cloud 5大组件有哪些？",
+   "服务注册和发现是什么意思？Spring Cloud 如何实现服务注册发现？",
+   "我看你之前也用过nacos，你能说下nacos与eureka的区别？"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\微服务篇.md"
+ },
+ {
+  "file": "技术场景篇.pdf",
+  "pages": 12,
+  "mode": "heading",
+  "level": 15.0,
+  "levels": [
+   15.0,
+   13.5
+  ],
+  "questions": 8,
+  "empty_answers": 0,
+  "avg_answer_len": 571.1,
+  "markers": 0,
+  "skipped": [],
+  "samples": [
+   "单点登录这块怎么实现的",
+   "权限认证是如何实现的",
+   "上传数据的安全性你们怎么控制？"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\技术场景篇.md"
+ },
+ {
+  "file": "消息中间件篇.pdf",
+  "pages": 4,
+  "mode": "qa",
+  "level": null,
+  "levels": [],
+  "questions": 14,
+  "empty_answers": 0,
+  "avg_answer_len": 98.2,
+  "markers": 14,
+  "skipped": [],
+  "samples": [
+   "RabbitMQ如何保证消息不丢失？",
+   "RabbitMQ消息的重复消费问题如何解决？",
+   "那你还知道其他的解决方案吗？"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\消息中间件篇.md"
+ },
+ {
+  "file": "设计模式篇.pdf",
+  "pages": 29,
+  "mode": "heading",
+  "level": 15.0,
+  "levels": [
+   15.0,
+   13.5
+  ],
+  "questions": 8,
+  "empty_answers": 0,
+  "avg_answer_len": 550.5,
+  "markers": 0,
+  "skipped": [
+   "概述",
+   "概述",
+   "结构",
+   "概述",
+   "结构"
+  ],
+  "samples": [
+   "简单工厂模式",
+   "工厂方法模式",
+   "抽象工厂模式"
+  ],
+  "out": "c:/Users/31643/Desktop/云枢智学/scripts/interview-md\\设计模式篇.md"
+ }
+]

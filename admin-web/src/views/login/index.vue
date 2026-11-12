@@ -16,6 +16,7 @@ const siteStore = useSiteStore()
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
 const errorMessage = ref('')
+const remember = ref(true)
 const form = reactive({ account: '', password: '' })
 
 /** 学员端根地址：开发端口不同，生产与后台同域（见 .env.*） */
@@ -59,7 +60,10 @@ async function handleSubmit(): Promise<void> {
   submitting.value = true
   errorMessage.value = ''
   try {
-    await userStore.login({ account: form.account.trim(), password: form.password })
+    await userStore.login(
+      { account: form.account.trim(), password: form.password },
+      remember.value
+    )
     ElMessage.success('登录成功')
     await router.replace(resolveTarget())
   } catch (error) {
@@ -98,6 +102,10 @@ async function handleSubmit(): Promise<void> {
             @keyup.enter="handleSubmit()"
           />
         </el-form-item>
+        <div class="login-options">
+          <el-checkbox v-model="remember">记住登录状态</el-checkbox>
+          <span class="forgot-tip">忘记密码？请联系超级管理员重置</span>
+        </div>
         <el-button type="primary" size="large" class="login-submit" :loading="submitting" @click="handleSubmit()">
           登录
         </el-button>
@@ -114,6 +122,19 @@ async function handleSubmit(): Promise<void> {
 .login-submit {
   width: 100%;
   margin-top: 6px;
+}
+
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -4px 0 14px;
+  font-size: 12px;
+}
+
+.forgot-tip {
+  color: var(--ink-4);
 }
 
 .login-switch {
