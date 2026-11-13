@@ -4,8 +4,7 @@ Vue 3 + TypeScript + Vite + Pinia + Vue Router + Element Plus + ECharts 的独�
 
 ## 当前状态
 
-**基础工程、学员端基础布局、账号体系、个人中心、学习路线、题库、刷题与错题本已完成**：路由、登录态、请求层、SSE 消费、状态管理、布局与样式令牌可用；
-首页、注册、登录、找回密码、退出登录、个人中心、学习路线、题库、刷题与错题本已接入后端，AI 面试仍为占位页。
+**学员端全部页面已完成并接入后端**：首页、注册/登录/找回密码、个人中心、学习路线、题库、刷题、错题本与 AI 面试（配置 / 进行中 / 报告 / 记录）均可使用；路由、登录态、请求层、SSE 消费、状态管理、布局与样式令牌已落地。
 
 已完成：
 
@@ -28,15 +27,15 @@ Vue 3 + TypeScript + Vite + Pinia + Vue Router + Element Plus + ECharts 的独�
 - 错题本：统计卡、高频错题 Top3、状态 / 题型 / 时间 / 排序筛选、批量操作、标记掌握、移除与错题重做（P-W01 ~ P-W05）
 - 开发环境短信：后端 `app.sms.mock=true` 时验证码通过接口回显与日志输出，便于本地联调；生产需接入真实短信服务
 
-未实现：AI 面试业务页面与接口联调，ECharts 图表，面试状态机细节。
+AI 面试已完成配置、发起、SSE 逐题评分、报告、历史记录与统计。
 
 ## 开发
 
 ```powershell
-pnpm install
-pnpm dev          # http://localhost:5173
-pnpm build        # 类型检查 + 生产构建（dist/）
-pnpm type-check
+npm install
+npm run dev          # http://localhost:5173
+npm run build        # 类型检查 + 生产构建（dist/）
+npm run type-check
 ```
 
 后端需在 `localhost:8080` 运行（`../backend`），开发服务器会代理 `/api` 与 `/files`。
