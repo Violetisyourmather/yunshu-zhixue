@@ -4,8 +4,7 @@ Vue 3 + TypeScript + Vite + Pinia + Vue Router + Element Plus + ECharts 的独�
 
 ## 当前状态
 
-**基础工程已搭建完成**：登录、路由守卫、权限菜单、`v-permission`、请求层、布局与样式令牌可用；
-业务页面均为占位，等待按 A1~A4 模块逐步实现。
+**管理端全部业务页面已完成并接入后端**：登录、看板、学科与阶段、B 站课程库、题库、面试题库、学习路线、学员、用户、角色、日志与系统设置；路由守卫、权限菜单、`v-permission`、请求层与布局均已落地。
 
 已完成：
 
@@ -18,15 +17,15 @@ Vue 3 + TypeScript + Vite + Pinia + Vue Router + Element Plus + ECharts 的独�
 - 状态：`useUserStore`（管理员/角色/权限码）、`usePermissionStore`（菜单可见性）
 - 布局：深墨侧栏 + 顶栏 + 内容区；样式令牌与学员端一致
 
-未实现：全部业务页面与接口联调、权限树、导入向导、导出、图表。
+批量导入（Excel / 粘贴文本 / Markdown）、权限树、导出与 ECharts 图表均已接入。
 
 ## 开发
 
 ```powershell
-pnpm install
-pnpm dev          # http://localhost:5174/admin/
-pnpm build        # 类型检查 + 生产构建（dist/）
-pnpm type-check
+npm install
+npm run dev          # http://localhost:5174/admin/
+npm run build        # 类型检查 + 生产构建（dist/）
+npm run type-check
 ```
 
 后端需在 `localhost:8080` 运行（`../backend`），开发服务器会代理 `/api` 与 `/files`。
